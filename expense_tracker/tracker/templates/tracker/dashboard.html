@@ -1,0 +1,316 @@
+{% extends 'tracker/base.html' %}
+
+{% block title %}Dashboard — Spendwise{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- ===================== STAT CARDS ===================== -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-4">
+    <div class="stat-card" style="animation-delay:.05s">
+      <div class="stat-icon icon-teal"><i class="bi bi-wallet2"></i></div>
+      <div class="stat-label">My Budget</div>
+      <div class="stat-value">₹{{ budget|floatformat:0 }}</div>
+      <div class="stat-sub">
+        {% if budget == 0 %}
+        <a href="{% url 'profile' %}" style="color:var(--primary);text-decoration:none;font-size:11px;">
+          <i class="bi bi-pencil"></i> Set your budget in Profile
+        </a>
+        {% else %}
+        <i class="bi bi-wallet"></i> Total money available
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-4">
+    <div class="stat-card" style="animation-delay:.15s">
+      <div class="stat-icon icon-amber"><i class="bi bi-receipt"></i></div>
+      <div class="stat-label">Total Expenses</div>
+      <div class="stat-value">₹{{ total_all|floatformat:0 }}</div>
+      <div class="stat-sub"><i class="bi bi-clock-history"></i> All time spending</div>
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-xl-4">
+    <div class="stat-card" style="animation-delay:.25s">
+      <div class="stat-icon {% if balance >= 0 %}icon-blue{% else %}icon-danger{% endif %}">
+        <i class="bi bi-{% if balance >= 0 %}piggy-bank{% else %}exclamation-triangle{% endif %}"></i>
+      </div>
+      <div class="stat-label">Balance Left</div>
+      <div class="stat-value {% if balance < 0 %}text-danger{% endif %}">₹{{ balance|floatformat:0 }}</div>
+      <div class="stat-sub">
+        {% if budget == 0 %}
+        <a href="{% url 'profile' %}" style="color:var(--primary);text-decoration:none;font-size:11px;">
+          <i class="bi bi-pencil"></i> Set budget to track balance
+        </a>
+        {% elif balance < 0 %} <span class="up"><i class="bi bi-exclamation-circle"></i> Over budget!</span>
+          {% else %}
+          <i class="bi bi-check-circle"></i> Remaining after expenses
+          {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CHARTS ===================== -->
+<div class="row g-3 mb-4">
+  <!-- Monthly Chart -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header-clean">
+        <h6>Monthly Spending Trend</h6>
+        <span class="text-muted small">Last 6 months</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-wrapper">
+          <canvas id="monthlyChart"></canvas>
+        </div>
+        <script id="monthlyLabelsData" type="application/json">{{ monthly_labels_json|safe }}</script>
+        <script id="monthlyTotalsData" type="application/json">{{ monthly_totals_json|safe }}</script>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Chart -->
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header-clean">
+        <h6>Category Breakdown</h6>
+        <span class="text-muted small">This month</span>
+      </div>
+      <div class="card-body">
+        {% if cat_display %}
+        <div class="chart-wrapper" style="height:180px">
+          <canvas id="catChart"></canvas>
+        </div>
+        <script id="catLabelsData" type="application/json">{{ cat_labels_json|safe }}</script>
+        <script id="catTotalsData" type="application/json">{{ cat_totals_json|safe }}</script>
+        {% else %}
+        <div class="empty-state text-center py-4">
+          <i class="bi bi-pie-chart"></i>
+          <p>No data for this month yet</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== LOWER SECTION ===================== -->
+<div class="row g-3">
+  <!-- Category Summary -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header-clean">
+        <h6>Category Summary</h6>
+      </div>
+      <div class="card-body">
+        {% if cat_display %}
+        {% for item in cat_display %}
+        <div class="cat-row">
+          <div class="cat-row-header">
+            <span class="cat-row-name {{ item.category|lower }} cat-color">{{ item.label }}</span>
+            <span class="cat-row-amount">₹{{ item.total|floatformat:0 }}</span>
+            <small class="badge ms-2">{{ item.count }} txns</small>
+          </div>
+          {% if total_this_month %}
+          {% widthratio item.total total_this_month 100 as width_pct %}
+          <div class="progress">
+            <div class="progress-bar" data-width="{{ width_pct }}"></div>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state text-center py-3">
+          <i class="bi bi-bar-chart"></i>
+          <p>No spending data yet</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Smart Insights -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header-clean d-flex justify-content-between">
+        <h6>Smart Insights</h6>
+        <i class="bi bi-stars text-primary"></i>
+      </div>
+      <div class="card-body">
+        {% for insight in insights %}
+        <div class="insight-card clickable-insight">
+          <i class="bi bi-lightbulb-fill"></i>
+          <span>{{ insight|safe }}</span>
+        </div>
+        {% endfor %}
+        <div class="insight-card">
+          <i class="bi bi-graph-down"></i>
+          <span>Avg daily: <strong>₹{{ avg_daily|floatformat:0 }}</strong></span>
+        </div>
+        <div class="mt-3 d-grid gap-2">
+          <a href="{% url 'add_expense' %}" class="btn-primary-custom text-center">
+            <i class="bi bi-plus"></i> Add Expense
+          </a>
+          <a href="{% url 'profile' %}" class="btn-outline-custom text-center">
+            <i class="bi bi-person"></i> My Profile
+          </a>
+          <a href="{% url 'generate_pdf' %}" class="btn-secondary-custom text-center">
+            <i class="bi bi-file-earmark-pdf"></i> PDF Report
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header-clean d-flex justify-content-between">
+        <h6>Recent Transactions</h6>
+        <a href="{% url 'expense_list' %}" class="text-primary small">View all</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent %}
+        {% for e in recent %}
+        <div class="d-flex align-items-center gap-2 p-3 border-bottom">
+          <div class="icon-box">
+            {% if e.category == 'Food' %}🍽️
+            {% elif e.category == 'Travel' %}✈️
+            {% elif e.category == 'Bills' %}⚡
+            {% elif e.category == 'Shopping' %}🛍️
+            {% elif e.category == 'Health' %}💊
+            {% elif e.category == 'Entertainment' %}🎬
+            {% else %}📌
+            {% endif %}
+          </div>
+          <div class="flex-grow-1 text-truncate">
+            <div class="fw-medium">{{ e.description }}</div>
+            <span class="cat-badge cat-{{ e.category|lower }}">{{ e.category }}</span>
+            <small class="text-muted">{{ e.date|date:"d M" }}</small>
+          </div>
+          <div class="fw-bold">₹{{ e.amount|floatformat:0 }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state text-center p-4">
+          <i class="bi bi-receipt"></i>
+          <h6>No expenses yet</h6>
+          <p>Start adding your expenses</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Insight dismiss JS
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.insight-card, .clickable-insight').forEach(function (card) {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', function () {
+        this.style.transition = 'opacity 0.2s ease';
+        this.style.opacity = '0.6';
+        setTimeout(function () { card.remove(); }, 250);
+      });
+    });
+
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function (bar) {
+      bar.style.width = bar.dataset.width + '%';
+    });
+  });
+
+  const catColors = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#f97316', '#64748b'];
+  const monthlyLabels = JSON.parse(document.getElementById('monthlyLabelsData').textContent);
+  const monthlyTotals = JSON.parse(document.getElementById('monthlyTotalsData').textContent);
+
+  // Monthly Chart
+  new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+      labels: monthlyLabels,
+      datasets: [{
+        data: monthlyTotals,
+        backgroundColor: 'rgba(14,165,233,0.15)',
+        borderColor: '#0ea5e9',
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            font: {
+              family: "'DM Sans', sans-serif",
+              size: 11
+            },
+            color: '#94a3b8'
+          }
+        },
+        y: {
+          grid: { color: '#f1f5f9' },
+          ticks: {
+            font: {
+              family: "'DM Sans', sans-serif",
+              size: 11
+            },
+            color: '#94a3b8',
+            callback: function (value) {
+              return '₹' + value.toLocaleString();
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // Category Chart
+  const catChartCanvas = document.getElementById('catChart');
+  if (catChartCanvas) {
+    const catLabels = JSON.parse(document.getElementById('catLabelsData').textContent);
+    const catTotals = JSON.parse(document.getElementById('catTotalsData').textContent);
+    new Chart(catChartCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catTotals,
+          backgroundColor: catColors,
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: { family: "'DM Sans', sans-serif", size: 11 },
+              padding: 12,
+              usePointStyle: true
+            }
+          }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}
