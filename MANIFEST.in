@@ -1,0 +1,18 @@
+# Include all necessary files for distribution
+
+# Documentation
+include README.md
+include LICENSE
+include requirements.txt
+
+# Django project files
+recursive-include tracker/templates *
+recursive-include tracker/static *
+recursive-include tracker/migrations *.py
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.swp
+global-exclude *.swo
