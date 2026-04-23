@@ -1,0 +1,114 @@
+{% extends 'tracker/base.html' %}
+{% block title %}Expenses — Spendwise{% endblock %}
+{% block page_title %}All Expenses{% endblock %}
+
+{% block content %}
+
+<!-- Filter Bar -->
+<div class="card mb-4">
+  <div class="card-header-clean">
+    <h6>Filter Expenses</h6>
+  </div>
+  <div class="card-body" style="padding:16px">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-4 col-lg-3">
+        <label class="form-label">Category</label>
+        {{ filter_form.category }}
+      </div>
+      <div class="col-sm-4 col-lg-3">
+        <label class="form-label">From Date</label>
+        {{ filter_form.date_from }}
+      </div>
+      <div class="col-sm-4 col-lg-3">
+        <label class="form-label">To Date</label>
+        {{ filter_form.date_to }}
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <button type="submit" class="btn-primary-custom" style="padding:9px 16px;font-size:13px">
+          <i class="bi bi-funnel"></i> Filter
+        </button>
+        <a href="{% url 'expense_list' %}"
+          style="display:inline-flex;align-items:center;gap:5px;padding:9px 14px;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-secondary);text-decoration:none">
+          <i class="bi bi-x"></i> Clear
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Expenses Table -->
+<div class="card">
+  <div class="card-header-clean">
+    <h6>Transactions</h6>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:13px;color:var(--text-secondary)">Total: <strong style="color:var(--text-primary)">₹{{
+          total|floatformat:0 }}</strong></span>
+      <a href="{% url 'add_expense' %}" class="btn-primary-custom" style="padding:6px 14px;font-size:13px">
+        <i class="bi bi-plus"></i> Add
+      </a>
+      <a href="{% url 'generate_pdf' %}?{{ request.GET.urlencode }}" class="btn-secondary-custom ms-2"
+        style="padding:6px 14px;font-size:13px;background:#0f172a;color:#fff;border-radius:10px;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+        <i class="bi bi-file-earmark-pdf"></i> Download PDF
+      </a>
+    </div>
+  </div>
+
+  {% if expenses %}
+  <div style="overflow-x:auto">
+    <table class="expense-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th style="text-align:right">Amount</th>
+          <th style="text-align:center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in expenses %}
+        <tr>
+          <td style="color:var(--text-secondary);white-space:nowrap">{{ e.date|date:"d M, Y" }}</td>
+          <td>
+            <span style="font-weight:500">{{ e.description }}</span>
+          </td>
+          <td>
+            <span class="cat-badge cat-{{ e.category }}">
+              {% if e.category == 'Food' %}🍽️{% elif e.category == 'Travel' %}✈️{% elif e.category == 'Bills' %}⚡{%
+              elif e.category == 'Shopping' %}🛍️{% elif e.category == 'Health' %}💊{% elif e.category ==
+              'Entertainment' %}🎬{% else %}📌{% endif %}
+              {{ e.get_category_display }}
+            </span>
+          </td>
+          <td style="text-align:right;font-weight:600;color:var(--text-primary)">₹{{ e.amount|floatformat:2 }}</td>
+          <td style="text-align:center">
+            <div style="display:flex;gap:6px;justify-content:center">
+              <a href="{% url 'edit_expense' e.pk %}" class="btn-sm-icon" title="Edit">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="post" action="{% url 'delete_expense' e.pk %}" style="display:inline"
+                onsubmit="return confirm('Delete this expense?')">
+                {% csrf_token %}
+                <button type="submit" class="btn-sm-icon danger" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-receipt-cutoff d-block"></i>
+    <h6>No expenses found</h6>
+    <p>Try adjusting your filters or add a new expense</p>
+    <a href="{% url 'add_expense' %}" class="btn-primary-custom mt-3" style="font-size:13px">
+      <i class="bi bi-plus"></i> Add First Expense
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
